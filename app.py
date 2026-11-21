@@ -71,41 +71,36 @@ def assign_substitutes(df, absent_fac_list, leave_days):
     if not absent_fac_list or not leave_days:
         return df, []
 
-    # Map each faculty member to the departments they teach
     fac_depts = {}
     for sec, _, fac, _, _ in COURSES:
-        dept = sec.split("-")[0]  # e.g., "CSE-II-A" -> "CSE"
+        dept = sec.split("-")[0]
         fac_depts.setdefault(fac, set()).add(dept)
 
-    # Track daily total load (regular classes + assigned substitutes) & weekly sub count
     daily_load = {}
     for _, r in df.iterrows():
         key = (r["Day"], r["Faculty"])
         daily_load[key] = daily_load.get(key, 0) + 1
     sub_count = {f: 0 for f in all_faculty}
 
-    MAX_DAILY_CLASSES = 4  # Hard cap: no teacher teaches > 4 periods/day total
+    MAX_DAILY_CLASSES = 4
 
     sub_logs = []
     for d_name in leave_days:
         for p_label in PERIODS:
             slot_df = df[(df["Day"] == d_name) & (df["Period"] == p_label)]
             busy_now = set(slot_df["Faculty"].tolist()) | set(absent_fac_list)
-            # Exclude teachers already substituting in this exact period
             busy_now |= set(slot_df["Substitute"].dropna().tolist())
 
             affected_rows = slot_df[slot_df["Faculty"].isin(absent_fac_list)]
             for idx, row in affected_rows.iterrows():
                 target_dept = row["Section"].split("-")[0]
 
-                # Filter candidates: free right now AND under daily workload cap
                 candidates = [
                     f for f in all_faculty
                     if f not in busy_now and daily_load.get((d_name, f), 0) < MAX_DAILY_CLASSES
                 ]
 
                 if candidates:
-                    # Rank by: (1) Same department first, (2) Fewest subs so far, (3) Lowest daily load
                     candidates.sort(
                         key=lambda f: (
                             0 if target_dept in fac_depts.get(f, set()) else 1,
@@ -169,13 +164,13 @@ with st.sidebar:
         )
 
 # ==============================================================================
-# MODE 1: EXAM & INVIGILATION SCHEDULER
+# MODE 1: EXAM & INVIGILATION SCHEDULER (WITH BENCH-LEVEL ROLL NUMBER SEATING)
 # ==============================================================================
 if schedule_mode == "Exam & Invigilation Schedule":
-    st.markdown("### 📝 Semester / Internal Exam & Invigilation Scheduler")
-    st.caption("Common department exams • Zero back-to-back daily exams • Fair invigilation duty balancing (CP-SAT)")
+    st.markdown("### 📝 End-Semester Exam & Anti-Malpractice Seating Optimizer")
+    st.caption("Cross-Department Long-Bench Pairing (2-Seater) • Single-Desk Isolation (1-Seater) • Roll-Number Allocation")
 
-    exam_df, exam_ms, exam_status = solve_exam_schedule(unavailable_faculty=absent_fac_list)
+    exam_df, exam_ms, exam_status, seating_plans = solve_exam_schedule(unavailable_faculty=absent_fac_list)
 
     if exam_df is None:
         st.error("No feasible exam schedule found! Try reducing absent faculty count.")
@@ -183,16 +178,51 @@ if schedule_mode == "Exam & Invigilation Schedule":
         e1, e2, e3, e4 = st.columns(4)
         e1.metric("Solver Status", exam_status)
         e2.metric("Solve Time", f"{exam_ms} ms")
-        e3.metric("Total Exam Sessions", len(exam_df))
+        e3.metric("Hall Allocations", len(exam_df))
         e4.metric("Excluded Absent Staff", len(absent_fac_list))
 
         st.markdown("<br>", unsafe_allow_html=True)
-        ex_view = st.radio("View Exam Schedule By", ["All Departments Master", "Filter by Section", "Invigilator Duty Roster"], horizontal=True)
+        ex_view = st.radio(
+            "View Exam Plan By",
+            ["🪑 Bench-by-Bench Roll Number Seating", "🏫 Master Hall & Roll Allocation", "📋 Invigilator Duty Roster"],
+            horizontal=True,
+        )
 
-        if ex_view == "Filter by Section":
-            sec_pick = st.selectbox("Select Section", SECTIONS)
-            st.dataframe(exam_df[exam_df["Section"] == sec_pick].drop(columns=["Day_Idx"]), use_container_width=True, hide_index=True)
-        elif ex_view == "Invigilator Duty Roster":
+        if ex_view == "🪑 Bench-by-Bench Roll Number Seating":
+            st.info(
+                "**Anti-Malpractice Rule Active:** In **Long Bench (2-Seater)** halls, Left Seat (A) and Right Seat (B) are strictly paired from "
+                "**different departments/subjects**. In **Small Bench (1-Seater)** halls, 1 student is seated per desk."
+            )
+            c_day, c_sess, c_hall = st.columns(3)
+            avail_days = list(dict.fromkeys(exam_df["Day"].tolist()))
+            sel_day = c_day.selectbox("Select Exam Day", avail_days)
+
+            day_filtered = exam_df[exam_df["Day"] == sel_day]
+            avail_sess = list(dict.fromkeys(day_filtered["Session"].tolist()))
+            sel_sess = c_sess.selectbox("Select Session", avail_sess)
+
+            sess_filtered = day_filtered[day_filtered["Session"] == sel_sess]
+            avail_halls = sess_filtered["Exam_Hall"].tolist()
+            sel_hall = c_hall.selectbox("Select Exam Hall", avail_halls)
+
+            hall_row = sess_filtered[sess_filtered["Exam_Hall"] == sel_hall].iloc[0]
+            st.markdown(
+                f"**Hall:** `{sel_hall}` | **Layout:** `{hall_row['Bench_Layout']}` | "
+                f"**Occupancy:** `{hall_row['Occupancy']}` | **Invigilator:** `{hall_row['Invigilator']}`"
+            )
+
+            plan_df = seating_plans.get((sel_day, sel_sess, sel_hall))
+            if plan_df is not None:
+                st.dataframe(plan_df, use_container_width=True, hide_index=True, height=520)
+                csv_bench = plan_df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    f"⬇️ Download {sel_hall} Bench Door-Sheet (CSV)",
+                    csv_bench,
+                    f"seating_{sel_day}_{sel_hall.replace(' ', '_')}.csv",
+                    "text/csv",
+                )
+
+        elif ex_view == "📋 Invigilator Duty Roster":
             duty_counts = exam_df["Invigilator"].value_counts().reset_index()
             duty_counts.columns = ["Faculty", "Total_Invigilation_Duties"]
             c_left, c_right = st.columns([1, 2])
@@ -201,12 +231,16 @@ if schedule_mode == "Exam & Invigilation Schedule":
                 st.dataframe(duty_counts, use_container_width=True, hide_index=True)
             with c_right:
                 st.subheader("Detailed Duty Allocation")
-                st.dataframe(exam_df[["Day", "Session", "Exam_Hall", "Section", "Exam_Subject", "Invigilator"]], use_container_width=True, hide_index=True)
+                st.dataframe(
+                    exam_df[["Day", "Session", "Exam_Hall", "Bench_Layout", "Occupancy", "Invigilator"]],
+                    use_container_width=True,
+                    hide_index=True,
+                )
         else:
             st.dataframe(exam_df.drop(columns=["Day_Idx"]), use_container_width=True, hide_index=True)
 
         csv_exam = exam_df.drop(columns=["Day_Idx"]).to_csv(index=False).encode("utf-8")
-        st.download_button("⬇️ Download Exam & Invigilation Schedule (CSV)", csv_exam, "exam_schedule.csv", "text/csv")
+        st.download_button("⬇️ Download Master Exam & Roll Allocation (CSV)", csv_exam, "master_exam_schedule.csv", "text/csv")
 
 # ==============================================================================
 # MODE 2: REGULAR CLASSES (WEEKLY TIMETABLE)
