@@ -88,24 +88,28 @@ SECTIONS = list(HOME_ROOMS.keys())
 
 LAB_NAMES_BY_DEPT = {
     "AIDS": [
-        "AI & Deep Learning Lab 1", "AI & Deep Learning Lab 2",
-        "Data Science & Big Data Lab 1", "Data Science & Big Data Lab 2",
-        "NLP & Vision Studio", "GPU Compute Lab",
+        "AI & Deep Learning Lab 1", "AI & Deep Learning Lab 2", "AI & Deep Learning Lab 3",
+        "Data Science & Big Data Lab 1", "Data Science & Big Data Lab 2", "Data Science & Big Data Lab 3",
+        "NLP & Vision Studio 1", "NLP & Vision Studio 2",
+        "GPU Compute Lab 1", "GPU Compute Lab 2",
     ],
     "CSE": [
-        "Core Computing Lab 1", "Core Computing Lab 2",
-        "Systems & OS Lab 1", "Systems & OS Lab 2",
-        "Networks & Compiler Lab", "Software Engg Studio",
+        "Core Computing Lab 1", "Core Computing Lab 2", "Core Computing Lab 3",
+        "Systems & OS Lab 1", "Systems & OS Lab 2", "Systems & OS Lab 3",
+        "Networks & Compiler Lab 1", "Networks & Compiler Lab 2",
+        "Software Engg Studio 1", "Software Engg Studio 2",
     ],
     "IT": [
-        "Full Stack Web Lab 1", "Full Stack Web Lab 2",
-        "Cloud & DevOps Lab 1", "Cloud & DevOps Lab 2",
-        "Cyber Security Lab", "Mobile App Dev Studio",
+        "Full Stack Web Lab 1", "Full Stack Web Lab 2", "Full Stack Web Lab 3",
+        "Cloud & DevOps Lab 1", "Cloud & DevOps Lab 2", "Cloud & DevOps Lab 3",
+        "Cyber Security Lab 1", "Cyber Security Lab 2",
+        "Mobile App Dev Studio 1", "Mobile App Dev Studio 2",
     ],
     "ECE": [
-        "Digital & VLSI Lab 1", "Digital & VLSI Lab 2",
-        "Microprocessor & IoT Lab 1", "Microprocessor & IoT Lab 2",
-        "DSP & Communication Lab", "Embedded Robotics Lab",
+        "Digital & VLSI Lab 1", "Digital & VLSI Lab 2", "Digital & VLSI Lab 3",
+        "Microprocessor & IoT Lab 1", "Microprocessor & IoT Lab 2", "Microprocessor & IoT Lab 3",
+        "DSP & Communication Lab 1", "DSP & Communication Lab 2",
+        "Embedded Robotics Lab 1", "Embedded Robotics Lab 2",
     ],
 }
 
@@ -252,9 +256,9 @@ CURRICULUM = {
     ],
 }
 
-# 48 Faculty per department (12 per Year Group) so each professor teaches ~12-15 hrs/week cleanly!
+# 60 Faculty per department (15 per Year Group) so each professor has max 2 sections (~10 hrs/week)
 FACULTY_POOL = {
-    dept: [f"Prof. {dept}-F{i:02d}" for i in range(1, 49)]
+    dept: [f"Prof. {dept}-F{i:02d}" for i in range(1, 61)]
     for dept in DEPARTMENTS
 }
 FACULTY_POOL["AIDS"][:6] = ["Dr. A. Verma", "Dr. P. Sharma", "Dr. K. Singh", "Dr. S. Iyer", "Dr. R. Mehta", "Dr. R. Menon"]
@@ -272,12 +276,11 @@ for sec in SECTIONS:
     yr_idx = YEARS.index(yr)
     pool = FACULTY_POOL[dept]
 
-    # Dedicated 12-faculty slice per year so staggered shifts never over-constrain a professor
-    yr_slice = pool[yr_idx * 12 : (yr_idx + 1) * 12]
+    yr_slice = pool[yr_idx * 15 : (yr_idx + 1) * 15]
 
     SECTION_STAFF[sec] = {}
     for subj_idx, (subj, mode, th_hrs, lab_hrs) in enumerate(CURRICULUM[dept_yr_key]):
-        fac = yr_slice[(sec_idx * 2 + subj_idx) % len(yr_slice)]
+        fac = yr_slice[(sec_idx * 3 + subj_idx) % len(yr_slice)]
         SECTION_STAFF[sec][subj] = fac
 
         if mode == "lecture":

@@ -10,7 +10,6 @@ from data.sample_campus import (
     SECTION_LETTERS,
 )
 
-# 70 Exam Halls across campus (2,400 seats per session -> 4,800 students across Forenoon + Afternoon shifts)
 EXAM_HALLS = []
 for b_idx in range(1, 51):
     EXAM_HALLS.append({
@@ -27,7 +26,6 @@ for s_idx in range(1, 21):
         "seats_per_bench": 1,
     })
 
-# Roll Number Prefixes & Strength for all 80 Sections (4,800 Students: Years I='26', II='25', III='24', IV='23')
 YEAR_BATCH_PREFIX = {"I": "26", "II": "25", "III": "24", "IV": "23"}
 DEPT_CODE = {"AIDS": "AID", "CSE": "CSE", "IT": "IT", "ECE": "ECE"}
 
@@ -41,11 +39,6 @@ for dept in DEPARTMENTS:
 
 
 def generate_hall_seating_plan(hall_info, allocations):
-    """
-    Generates exact bench-by-bench roll number seating for a single exam hall.
-    - Long Bench (2-Seater): Pairs Seat A (Subject 1) with Seat B (Subject 2) on the same bench.
-    - Small Bench (1-Seater): Interleaves students from different departments across single desks.
-    """
     benches = hall_info["benches"]
     spb = hall_info["seats_per_bench"]
     rows = []
@@ -110,7 +103,6 @@ def solve_exam_schedule(
     num_days = len(exam_days)
     num_sessions = len(sessions)
 
-    # Extract written exam subjects (both 'lecture' and 'tcl' Theory-cum-Lab courses have written exams)
     dept_exams = {
         dept: [subj for subj, mode, _, _ in subjects if mode in ("lecture", "tcl")]
         for dept, subjects in CURRICULUM.items()
@@ -119,7 +111,6 @@ def solve_exam_schedule(
     sections = list(SECTION_STAFF.keys())
     all_faculty = sorted(list({fac for m in SECTION_STAFF.values() for fac in m.values()} - unavailable_faculty))
 
-    # 1. Decision Variables: e[(dept_yr, subj_idx, d, s)]
     e = {}
     for dept_yr, subjs in dept_exams.items():
         for s_idx in range(len(subjs)):
@@ -127,18 +118,14 @@ def solve_exam_schedule(
                 for s in range(num_sessions):
                     e[(dept_yr, s_idx, d, s)] = model.NewBoolVar(f"exam_{dept_yr}_{s_idx}_{d}_{s}")
 
-    # 2. Hard Constraints
-    # A: Every written subject scheduled exactly once
     for dept_yr, subjs in dept_exams.items():
         for s_idx in range(len(subjs)):
             model.Add(sum(e[(dept_yr, s_idx, d, s)] for d in range(num_days) for s in range(num_sessions)) == 1)
 
-    # B: Max 1 exam per day per department-year (gives students daily study gap)
     for dept_yr, subjs in dept_exams.items():
         for d in range(num_days):
             model.Add(sum(e[(dept_yr, s_idx, d, s)] for s_idx in range(len(subjs)) for s in range(num_sessions)) <= 1)
 
-    # C: Total students writing in any (day, session) cannot exceed campus exam seat capacity (2,400 seats)
     total_campus_seats = sum(h["benches"] * h["seats_per_bench"] for h in EXAM_HALLS)
     for d in range(num_days):
         for s in range(num_sessions):
@@ -151,7 +138,6 @@ def solve_exam_schedule(
                     total_students_slot.append(e[(dept_yr, s_idx, d, s)] * strength)
             model.Add(sum(total_students_slot) <= total_campus_seats)
 
-    # 3. Solve Exam Timetable
     start_time = time.time()
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 15.0
@@ -160,7 +146,6 @@ def solve_exam_schedule(
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return None, round((time.time() - start_time) * 1000, 2), solver.StatusName(status), {}
 
-    # 4. Anti-Malpractice Cross-Department Hall & Roll-Number Packing
     schedule_rows = []
     seating_plans = {}
     fac_duty_count = {f: 0 for f in all_faculty}

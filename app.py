@@ -61,7 +61,6 @@ st.markdown(
     .badge-tcl { display: inline-block; background-color: #f3e8ff; color: #7e22ce; font-size: 0.66rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-bottom: 4px; }
     .badge-lec { display: inline-block; background-color: #e0e7ff; color: #4338ca; font-size: 0.66rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-bottom: 4px; }
     .badge-sub { display: inline-block; background-color: #dcfce7; color: #15803d; font-size: 0.66rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-bottom: 4px; }
-    .badge-clash { display: inline-block; background-color: #fee2e2; color: #b91c1c; font-size: 0.66rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-bottom: 4px; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -76,18 +75,7 @@ SUBJ_COLORS = {subj: PALETTE[i % len(PALETTE)] for i, subj in enumerate(all_subj
 all_faculty = sorted(list(set(c[2] for c in COURSES)))
 
 
-@st.cache_data(show_spinner="Optimizing 80 sections (2,400 periods) with Google OR-Tools CP-SAT...")
-def get_cached_cpsat(unavail_tuple):
-    return solve_cpsat(unavailable_faculty=list(unavail_tuple))
-
-
-@st.cache_data(show_spinner="Generating End-Semester Exam & Anti-Malpractice Bench Plan for 4,800 students...")
-def get_cached_exam(unavail_tuple):
-    return solve_exam_schedule(unavailable_faculty=list(unavail_tuple))
-
-
 def assign_substitutes(df, absent_fac_list, leave_days):
-    """Interval-overlap-aware, workload-capped & department-matched substitute rotation."""
     df = df.copy()
     df["Substitute"] = None
     if not absent_fac_list or not leave_days:
@@ -202,10 +190,11 @@ if schedule_mode == "Exam & Invigilation Schedule":
     st.markdown("### 📝 End-Semester Exam & Anti-Malpractice Seating Optimizer (80 Sections • 4,800 Students)")
     st.caption("Cross-Department Long-Bench Pairing (2-Seater) • Single-Desk Isolation (1-Seater) • Roll-Number Allocation")
 
-    exam_df, exam_ms, exam_status, seating_plans = get_cached_exam(tuple(sorted(absent_fac_list)))
+    with st.spinner("Generating End-Semester Exam & Anti-Malpractice Bench Plan for 4,800 students..."):
+        exam_df, exam_ms, exam_status, seating_plans = solve_exam_schedule(unavailable_faculty=absent_fac_list)
 
     if exam_df is None:
-        st.error("No feasible exam schedule found! Try reducing absent faculty count.")
+        st.error(f"Solver returned `{exam_status}` ({exam_ms} ms). Try reducing absent faculty count.")
     else:
         e1, e2, e3, e4 = st.columns(4)
         e1.metric("Solver Status", exam_status)
@@ -286,7 +275,8 @@ else:
                     unavailable_tuples.append((fac, d_idx, p_idx))
 
     if algorithm_choice == "Google OR-Tools (CP-SAT)":
-        df, solve_ms, clashes, status = get_cached_cpsat(tuple(sorted(unavailable_tuples)))
+        with st.spinner("Solving 80 sections (2,400 periods) with Google OR-Tools CP-SAT..."):
+            df, solve_ms, clashes, status = solve_cpsat(unavailable_faculty=unavailable_tuples)
     else:
         greedy_courses = [(c[0], c[1], c[2], c[3], c[4]) for c in COURSES]
         df, solve_ms, clashes, _ = solve_greedy(courses=greedy_courses, sections=SECTIONS, rooms=ROOMS)
@@ -309,7 +299,10 @@ else:
 
     with tab1:
         if df is None:
-            st.error("No feasible schedule exists under these constraints! Switch Handling Strategy to Auto-Assign Free Substitutes.")
+            st.error(
+                f"Solver status: `{status}` ({solve_ms} ms). "
+                "If full-day leave caused infeasibility, switch **Handling Strategy** to **Auto-Assign Free Substitutes (Keep Grid Fixed)**."
+            )
         else:
             lab_rows = df[df["Type"] == "Lab"]
             max_labs_per_day = int(lab_rows.groupby(["Section", "Day"]).size().max() // 2) if not lab_rows.empty else 0
@@ -370,7 +363,7 @@ else:
                     row_slots = [(p["idx"], p["label"]) for p in sec_periods]
 
                 elif view_mode == "Faculty Schedule":
-                    selected_entity = v2.selectbox("Select Faculty Member (140 Staff)", all_faculty)
+                    selected_entity = v2.selectbox("Select Faculty Member (240 Staff)", all_faculty)
                     filtered_df = df[(df["Faculty"] == selected_entity) | (df["Substitute"] == selected_entity)]
                     unique_times = (
                         filtered_df[["Period_Idx", "Period", "Start_Min"]]
@@ -383,7 +376,7 @@ else:
 
                 else:
                     room_names = [r["name"] for r in ROOMS]
-                    selected_entity = v2.selectbox("Select Classroom / Lab (104 Rooms)", room_names)
+                    selected_entity = v2.selectbox("Select Classroom / Lab (120 Rooms)", room_names)
                     filtered_df = df[df["Room"] == selected_entity]
                     unique_times = (
                         filtered_df[["Period_Idx", "Period", "Start_Min"]]
@@ -457,7 +450,7 @@ else:
                 )
                 st.plotly_chart(fig_donut, use_container_width=True)
             with col_right:
-                st.subheader("Shared Lab Utilization (%) Across 24 Labs")
+                st.subheader("Shared Lab Utilization (%) Across 40 Labs")
                 lab_df = df[df["Type"] == "Lab"]
                 slots_per_room = len(DAYS) * 6
                 room_usage = lab_df["Room"].value_counts().reset_index()
@@ -474,7 +467,7 @@ else:
                     color_continuous_scale="Blues",
                 )
                 fig_bar.update_traces(texttemplate="%{text}%", textposition="outside")
-                fig_bar.update_layout(coloraxis_showscale=False, height=520)
+                fig_bar.update_layout(coloraxis_showscale=False, height=580)
                 st.plotly_chart(fig_bar, use_container_width=True)
 
     with tab3:
