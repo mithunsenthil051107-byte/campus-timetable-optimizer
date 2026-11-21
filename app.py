@@ -65,41 +65,79 @@ all_faculty = sorted(list(set(c[2] for c in COURSES)))
 
 
 def assign_substitutes(df, absent_fac_list, leave_days):
-    """Automatically assigns free faculty to cover classes when multiple teachers are absent."""
+    """Fair, workload-capped & department-aware substitute faculty assignment."""
     df = df.copy()
     df["Substitute"] = None
     if not absent_fac_list or not leave_days:
         return df, []
 
+    # Map each faculty member to the departments they teach
+    fac_depts = {}
+    for sec, _, fac, _, _ in COURSES:
+        dept = sec.split("-")[0]  # e.g., "CSE-II-A" -> "CSE"
+        fac_depts.setdefault(fac, set()).add(dept)
+
+    # Track daily total load (regular classes + assigned substitutes) & weekly sub count
+    daily_load = {}
+    for _, r in df.iterrows():
+        key = (r["Day"], r["Faculty"])
+        daily_load[key] = daily_load.get(key, 0) + 1
+    sub_count = {f: 0 for f in all_faculty}
+
+    MAX_DAILY_CLASSES = 4  # Hard cap: no teacher teaches > 4 periods/day total
+
     sub_logs = []
     for d_name in leave_days:
         for p_label in PERIODS:
             slot_df = df[(df["Day"] == d_name) & (df["Period"] == p_label)]
-            busy_fac = set(slot_df["Faculty"].tolist()) | set(absent_fac_list)
-            free_fac = [f for f in all_faculty if f not in busy_fac]
+            busy_now = set(slot_df["Faculty"].tolist()) | set(absent_fac_list)
+            # Exclude teachers already substituting in this exact period
+            busy_now |= set(slot_df["Substitute"].dropna().tolist())
 
             affected_rows = slot_df[slot_df["Faculty"].isin(absent_fac_list)]
             for idx, row in affected_rows.iterrows():
-                if free_fac:
-                    sub_teacher = free_fac.pop(0)
-                    df.at[idx, "Substitute"] = sub_teacher
+                target_dept = row["Section"].split("-")[0]
+
+                # Filter candidates: free right now AND under daily workload cap
+                candidates = [
+                    f for f in all_faculty
+                    if f not in busy_now and daily_load.get((d_name, f), 0) < MAX_DAILY_CLASSES
+                ]
+
+                if candidates:
+                    # Rank by: (1) Same department first, (2) Fewest subs so far, (3) Lowest daily load
+                    candidates.sort(
+                        key=lambda f: (
+                            0 if target_dept in fac_depts.get(f, set()) else 1,
+                            sub_count[f],
+                            daily_load.get((d_name, f), 0),
+                        )
+                    )
+                    chosen = candidates[0]
+                    df.at[idx, "Substitute"] = chosen
+                    busy_now.add(chosen)
+                    daily_load[(d_name, chosen)] = daily_load.get((d_name, chosen), 0) + 1
+                    sub_count[chosen] += 1
+
                     sub_logs.append({
                         "Day": d_name,
                         "Period": p_label,
                         "Section": row["Section"],
                         "Subject": row["Subject"],
                         "Absent_Faculty": row["Faculty"],
-                        "Assigned_Substitute": sub_teacher,
+                        "Assigned_Substitute": chosen,
+                        "Teacher_Daily_Total": f"{daily_load[(d_name, chosen)]}/{MAX_DAILY_CLASSES} hrs",
                     })
                 else:
-                    df.at[idx, "Substitute"] = "⚠️ No Free Staff (Library/Self-Study)"
+                    df.at[idx, "Substitute"] = "⚠️ No Eligible Staff (Self-Study)"
                     sub_logs.append({
                         "Day": d_name,
                         "Period": p_label,
                         "Section": row["Section"],
                         "Subject": row["Subject"],
                         "Absent_Faculty": row["Faculty"],
-                        "Assigned_Substitute": "No Free Staff (Self-Study)",
+                        "Assigned_Substitute": "No Eligible Staff (Self-Study)",
+                        "Teacher_Daily_Total": "-",
                     })
     return df, sub_logs
 
