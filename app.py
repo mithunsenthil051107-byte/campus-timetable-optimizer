@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from data.sample_campus import DAYS, PERIODS, SECTIONS, ROOMS, COURSES
+from data.sample_campus import DAYS, PERIODS, SECTIONS, ROOMS, COURSES, HOME_ROOMS
 from solver.cpsat_optimizer import solve_cpsat
 from solver.greedy_baseline import solve_greedy
 
@@ -17,11 +17,9 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* Clean page background & typography */
     .stApp {
         background-color: #f8fafc;
     }
-    /* Styled KPI Cards */
     div[data-testid="stMetric"] {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -39,7 +37,6 @@ st.markdown(
         font-weight: 700;
         color: #0f172a;
     }
-    /* Custom HTML Timetable Grid */
     .tt-table {
         width: 100%;
         border-collapse: separate;
@@ -73,7 +70,7 @@ st.markdown(
         padding: 10px 12px;
         border: 1px solid #e2e8f0;
         vertical-align: top;
-        height: 92px;
+        height: 94px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
     .tt-free {
@@ -84,7 +81,7 @@ st.markdown(
         font-size: 0.8rem;
         text-align: center;
         vertical-align: middle;
-        height: 92px;
+        height: 94px;
     }
     .tt-subj {
         font-weight: 700;
@@ -133,7 +130,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Color palette for subjects (left border accent)
+# Color palette for subjects
 PALETTE = [
     ("#3b82f6", "#eff6ff"),  # Blue
     ("#8b5cf6", "#f5f3ff"),  # Violet
@@ -182,14 +179,14 @@ else:
 hdr_left, hdr_right = st.columns([3, 1])
 with hdr_left:
     st.markdown("### 🎓 Campus Resource & Timetable Optimization Engine")
-    st.caption("Constraint Satisfaction & Multi-Objective Integer Programming • Google OR-Tools CP-SAT")
+    st.caption("Full-College Constraint Satisfaction & Home-Room Binding • Google OR-Tools CP-SAT")
 with hdr_right:
     if df is not None:
         csv_data = df.drop(columns=["Day_Idx", "Period_Idx"], errors="ignore").to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="⬇️ Export Schedule (CSV)",
+            label="⬇️ Export Master Schedule (CSV)",
             data=csv_data,
-            file_name="optimized_campus_timetable.csv",
+            file_name="entire_college_timetable.csv",
             mime="text/csv",
             use_container_width=True,
         )
@@ -212,70 +209,93 @@ with tab1:
             delta_color="normal" if clashes == 0 else "inverse",
         )
         total_slots = len(ROOMS) * len(DAYS) * len(PERIODS)
-        c4.metric("Room Utilization", f"{round((len(df)/total_slots)*100, 1)}%")
+        c4.metric("Campus Utilization", f"{round((len(df)/total_slots)*100, 1)}%")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Multi-Perspective View Switcher (Section / Faculty / Room)
-        v1, v2 = st.columns([1, 2])
-        view_mode = v1.radio("View Mode", ["Student Section", "Faculty Schedule", "Classroom View"], horizontal=True)
+        # Multi-Perspective View Switcher
+        v1, v2 = st.columns([2, 2])
+        view_mode = v1.radio(
+            "View Mode",
+            ["Student Section", "Entire College (All Sections)", "Faculty Schedule", "Classroom / Lab View"],
+            horizontal=True,
+        )
 
-        if view_mode == "Student Section":
-            selected_entity = v2.selectbox("Select Student Section", SECTIONS)
-            filtered_df = df[df["Section"] == selected_entity]
-        elif view_mode == "Faculty Schedule":
-            selected_entity = v2.selectbox("Select Faculty Member", all_faculty)
-            filtered_df = df[df["Faculty"] == selected_entity]
+        if view_mode == "Entire College (All Sections)":
+            st.subheader(f"🏫 Master College Timetable ({len(SECTIONS)} Sections • {len(df)} Scheduled Periods)")
+            pivot_master = (
+                df.pivot_table(
+                    index=["Day_Idx", "Day", "Period_Idx", "Period"],
+                    columns="Section",
+                    values="Subject",
+                    aggfunc=lambda s: " / ".join(s),
+                )
+                .reset_index()
+                .sort_values(["Day_Idx", "Period_Idx"])
+            )
+            pivot_master = pivot_master.drop(columns=["Day_Idx", "Period_Idx"])
+            st.dataframe(pivot_master, use_container_width=True, hide_index=True, height=620)
         else:
-            room_names = [r["name"] for r in ROOMS]
-            selected_entity = v2.selectbox("Select Classroom / Lab", room_names)
-            filtered_df = df[df["Room"] == selected_entity]
+            if view_mode == "Student Section":
+                selected_entity = v2.selectbox("Select Student Section", SECTIONS)
+                filtered_df = df[df["Section"] == selected_entity]
+                st.info(
+                    f"🏠 **Designated Home Classroom:** `{HOME_ROOMS[selected_entity]}` "
+                    f"(Students remain in their home room for all theory lectures and move only for Labs • "
+                    f"**{len(filtered_df)}/30 Periods Filled**)"
+                )
+            elif view_mode == "Faculty Schedule":
+                selected_entity = v2.selectbox("Select Faculty Member", all_faculty)
+                filtered_df = df[df["Faculty"] == selected_entity]
+            else:
+                room_names = [r["name"] for r in ROOMS]
+                selected_entity = v2.selectbox("Select Classroom / Lab", room_names)
+                filtered_df = df[df["Room"] == selected_entity]
 
-        # Build Rich HTML Timetable Grid
-        html = ['<table class="tt-table"><thead><tr><th style="width:11%;">Time / Day</th>']
-        for d in DAYS:
-            html.append(f"<th>{d}</th>")
-        html.append("</tr></thead><tbody>")
-
-        for p_idx, p_label in enumerate(PERIODS):
-            html.append(f'<tr><td class="tt-time"><b>Period {p_idx + 1}</b><br>{p_label}</td>')
+            # Build Rich HTML Timetable Grid
+            html = ['<table class="tt-table"><thead><tr><th style="width:11%;">Time / Day</th>']
             for d in DAYS:
-                matches = filtered_df[(filtered_df["Day"] == d) & (filtered_df["Period"] == p_label)]
-                if matches.empty:
-                    html.append('<td class="tt-free">Free Slot</td>')
-                else:
-                    row = matches.iloc[0]
-                    subj = row["Subject"]
-                    border_col, bg_col = SUBJ_COLORS.get(subj, ("#3b82f6", "#eff6ff"))
-                    is_clash = row.get("Conflict", False) or len(matches) > 1
+                html.append(f"<th>{d}</th>")
+            html.append("</tr></thead><tbody>")
 
-                    if is_clash:
-                        badge = '<span class="badge-clash">⚠️ HARD CLASH</span>'
-                        border_col, bg_col = "#ef4444", "#fef2f2"
-                    elif "Lab" in subj:
-                        badge = '<span class="badge-lab">LAB SESSION</span>'
+            for p_idx, p_label in enumerate(PERIODS):
+                html.append(f'<tr><td class="tt-time"><b>Period {p_idx + 1}</b><br>{p_label}</td>')
+                for d in DAYS:
+                    matches = filtered_df[(filtered_df["Day"] == d) & (filtered_df["Period"] == p_label)]
+                    if matches.empty:
+                        html.append('<td class="tt-free">Free Slot</td>')
                     else:
-                        badge = '<span class="badge-lec">LECTURE</span>'
+                        row = matches.iloc[0]
+                        subj = row["Subject"]
+                        border_col, bg_col = SUBJ_COLORS.get(subj, ("#3b82f6", "#eff6ff"))
+                        is_clash = row.get("Conflict", False) or len(matches) > 1
 
-                    # Show relevant secondary info depending on view mode
-                    if view_mode == "Student Section":
-                        sub_line = f"👤 {row['Faculty']}<br>🏫 {row['Room']}"
-                    elif view_mode == "Faculty Schedule":
-                        sub_line = f"🎓 {row['Section']}<br>🏫 {row['Room']}"
-                    else:
-                        sub_line = f"🎓 {row['Section']}<br>👤 {row['Faculty']}"
+                        if is_clash:
+                            badge = '<span class="badge-clash">⚠️ HARD CLASH</span>'
+                            border_col, bg_col = "#ef4444", "#fef2f2"
+                        elif "Lab" in subj:
+                            badge = '<span class="badge-lab">LAB SESSION</span>'
+                        else:
+                            badge = '<span class="badge-lec">HOME LECTURE</span>'
 
-                    html.append(
-                        f'<td class="tt-cell" style="border-left: 4px solid {border_col}; background-color: {bg_col};">'
-                        f"{badge}"
-                        f'<div class="tt-subj">{subj}</div>'
-                        f'<div class="tt-meta">{sub_line}</div>'
-                        f"</td>"
-                    )
-            html.append("</tr>")
-        html.append("</tbody></table>")
+                        if view_mode == "Student Section":
+                            sub_line = f"👤 {row['Faculty']}<br>🏫 {row['Room']}"
+                        elif view_mode == "Faculty Schedule":
+                            sub_line = f"🎓 {row['Section']}<br>🏫 {row['Room']}"
+                        else:
+                            sub_line = f"🎓 {row['Section']}<br>👤 {row['Faculty']}"
 
-        st.markdown("".join(html), unsafe_allow_html=True)
+                        html.append(
+                            f'<td class="tt-cell" style="border-left: 4px solid {border_col}; background-color: {bg_col};">'
+                            f"{badge}"
+                            f'<div class="tt-subj">{subj}</div>'
+                            f'<div class="tt-meta">{sub_line}</div>'
+                            f"</td>"
+                        )
+                html.append("</tr>")
+            html.append("</tbody></table>")
+
+            st.markdown("".join(html), unsafe_allow_html=True)
 
 with tab2:
     if df is not None:
