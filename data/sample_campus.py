@@ -113,7 +113,6 @@ for dept, labs in LAB_NAMES_BY_DEPT.items():
     for l_name in labs:
         ROOMS.append({"name": l_name, "type": "lab", "capacity": 65})
 
-# Every subject has <= 5 theory hours/week, and every curriculum totals EXACTLY 30 hrs/week!
 CURRICULUM = {
     "AIDS-I": [
         ("Engineering Mathematics I",  "lecture", 5, 0),
@@ -253,8 +252,9 @@ CURRICULUM = {
     ],
 }
 
+# 48 Faculty per department (12 per Year Group) so each professor teaches ~12-15 hrs/week cleanly!
 FACULTY_POOL = {
-    dept: [f"Prof. {dept}-F{i:02d}" for i in range(1, 36)]
+    dept: [f"Prof. {dept}-F{i:02d}" for i in range(1, 49)]
     for dept in DEPARTMENTS
 }
 FACULTY_POOL["AIDS"][:6] = ["Dr. A. Verma", "Dr. P. Sharma", "Dr. K. Singh", "Dr. S. Iyer", "Dr. R. Mehta", "Dr. R. Menon"]
@@ -272,9 +272,12 @@ for sec in SECTIONS:
     yr_idx = YEARS.index(yr)
     pool = FACULTY_POOL[dept]
 
+    # Dedicated 12-faculty slice per year so staggered shifts never over-constrain a professor
+    yr_slice = pool[yr_idx * 12 : (yr_idx + 1) * 12]
+
     SECTION_STAFF[sec] = {}
     for subj_idx, (subj, mode, th_hrs, lab_hrs) in enumerate(CURRICULUM[dept_yr_key]):
-        fac = pool[(yr_idx * 8 + sec_idx * 3 + subj_idx) % len(pool)]
+        fac = yr_slice[(sec_idx * 2 + subj_idx) % len(yr_slice)]
         SECTION_STAFF[sec][subj] = fac
 
         if mode == "lecture":
