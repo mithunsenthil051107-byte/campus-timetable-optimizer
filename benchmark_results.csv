@@ -1,0 +1,9 @@
+Scenario,Algorithm,Hard_Conflicts,Student_Idle_Gaps,Room_Utilization_%,Solve_Time_ms
+1. Base Load (3 Sections),Greedy Baseline,0,2,55.0,0.09
+1. Base Load (3 Sections),Google OR-Tools (CP-SAT),0,0,55.0,773.33
+2. Medium Load (4 Sections),Greedy Baseline,2,4,66.7,0.15
+2. Medium Load (4 Sections),Google OR-Tools (CP-SAT),0,0,66.7,9630.13
+3. High Load (5 Sections),Greedy Baseline,4,4,78.3,0.2
+3. High Load (5 Sections),Google OR-Tools (CP-SAT),0,0,78.3,10051.86
+4. Bottleneck Stress (6 Sections),Greedy Baseline,8,4,90.0,0.29
+4. Bottleneck Stress (6 Sections),Google OR-Tools (CP-SAT),-1,0,0.0,279.67
