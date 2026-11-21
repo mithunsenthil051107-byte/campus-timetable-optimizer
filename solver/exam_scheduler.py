@@ -2,33 +2,48 @@
 import time
 import pandas as pd
 from ortools.sat.python import cp_model
-from data.sample_campus import CURRICULUM, SECTION_STAFF
+from data.sample_campus import (
+    CURRICULUM,
+    SECTION_STAFF,
+    DEPARTMENTS,
+    YEARS,
+    SECTION_LETTERS,
+)
 
-# Exam Hall Configurations: Long Bench (2 seats/bench) vs Small Single Bench (1 seat/bench)
-EXAM_HALLS = [
-    {"name": "Main Hall 101 (AIDS)", "bench_type": "Long Bench (2-Seater)",  "benches": 20, "seats_per_bench": 2},  # 40 seats
-    {"name": "Main Hall 102 (AIDS)", "bench_type": "Long Bench (2-Seater)",  "benches": 20, "seats_per_bench": 2},  # 40 seats
-    {"name": "Main Hall 201 (CSE)",  "bench_type": "Long Bench (2-Seater)",  "benches": 20, "seats_per_bench": 2},  # 40 seats
-    {"name": "Main Hall 202 (CSE)",  "bench_type": "Long Bench (2-Seater)",  "benches": 20, "seats_per_bench": 2},  # 40 seats
-    {"name": "Seminar Hall 301 (IT)","bench_type": "Small Bench (1-Seater)", "benches": 30, "seats_per_bench": 1},  # 30 seats
-    {"name": "Drawing Hall 401 (ECE)","bench_type": "Small Bench (1-Seater)","benches": 30, "seats_per_bench": 1},  # 30 seats
-]
+# 70 Exam Halls across campus (2,400 seats per session -> 4,800 students across Forenoon + Afternoon shifts)
+EXAM_HALLS = []
+for b_idx in range(1, 51):
+    EXAM_HALLS.append({
+        "name": f"Main Hall {b_idx:02d} (Long Bench)",
+        "bench_type": "Long Bench (2-Seater)",
+        "benches": 20,
+        "seats_per_bench": 2,
+    })
+for s_idx in range(1, 21):
+    EXAM_HALLS.append({
+        "name": f"Seminar Hall {s_idx:02d} (Single Desk)",
+        "bench_type": "Small Bench (1-Seater)",
+        "benches": 20,
+        "seats_per_bench": 1,
+    })
 
-# Roll Number Prefixes & Strength per Section (60 students each = 360 total campus strength)
-SECTION_ROLL_INFO = {
-    "AIDS-II-A": ("24AID", 1, 60),
-    "AIDS-II-B": ("24AID", 61, 120),
-    "CSE-II-A":  ("24CSE", 1, 60),
-    "CSE-II-B":  ("24CSE", 61, 120),
-    "IT-II-A":   ("24IT",  1, 60),
-    "ECE-II-A":  ("24ECE", 1, 60),
-}
+# Roll Number Prefixes & Strength for all 80 Sections (4,800 Students: Years I='26', II='25', III='24', IV='23')
+YEAR_BATCH_PREFIX = {"I": "26", "II": "25", "III": "24", "IV": "23"}
+DEPT_CODE = {"AIDS": "AID", "CSE": "CSE", "IT": "IT", "ECE": "ECE"}
+
+SECTION_ROLL_INFO = {}
+for dept in DEPARTMENTS:
+    for yr in YEARS:
+        for idx, letter in enumerate(SECTION_LETTERS):
+            sec = f"{dept}-{yr}-{letter}"
+            prefix = f"{YEAR_BATCH_PREFIX[yr]}{DEPT_CODE[dept]}"
+            SECTION_ROLL_INFO[sec] = (prefix, idx * 60 + 1, (idx + 1) * 60)
 
 
 def generate_hall_seating_plan(hall_info, allocations):
     """
     Generates exact bench-by-bench roll number seating for a single exam hall.
-    - Long Bench (2-Seater): Pairs Seat A (Dept 1) with Seat B (Dept 2) on the same bench!
+    - Long Bench (2-Seater): Pairs Seat A (Subject 1) with Seat B (Subject 2) on the same bench.
     - Small Bench (1-Seater): Interleaves students from different departments across single desks.
     """
     benches = hall_info["benches"]
@@ -36,7 +51,6 @@ def generate_hall_seating_plan(hall_info, allocations):
     rows = []
 
     if spb == 2:
-        # Separate allocations into Side A and Side B (different subjects/departments)
         side_a, side_b = [], []
         for alloc in allocations:
             target = side_a if len(side_a) <= len(side_b) else side_b
@@ -53,14 +67,17 @@ def generate_hall_seating_plan(hall_info, allocations):
                 "Left_Subject": seat_a[2],
                 "Right_Seat (B)": f"{seat_b[0]} ({seat_b[1]})" if seat_b[1] != "-" else "EMPTY",
                 "Right_Subject": seat_b[2],
-                "Anti_Malpractice_Check": "✅ Different Subjects" if (seat_a[2] != seat_b[2] and seat_b[2] != "-") else "✅ Single/Empty",
+                "Anti_Malpractice_Check": (
+                    "✅ Different Subjects"
+                    if (seat_a[2] != seat_b[2] and seat_b[2] != "-")
+                    else "✅ Single/Empty"
+                ),
             })
     else:
-        # Small Bench (1-Seater): Interleave streams round-robin across desks 1..30
-        streams = []
-        for alloc in allocations:
-            streams.append([(r_num, alloc["section"], alloc["subject"]) for r_num in alloc["roll_list"]])
-
+        streams = [
+            [(r_num, alloc["section"], alloc["subject"]) for r_num in alloc["roll_list"]]
+            for alloc in allocations
+        ]
         interleaved = []
         max_len = max((len(s) for s in streams), default=0)
         for i in range(max_len):
@@ -77,6 +94,7 @@ def generate_hall_seating_plan(hall_info, allocations):
                 "Subject": seat[2],
                 "Anti_Malpractice_Check": "✅ Isolated Single Desk",
             })
+
     return pd.DataFrame(rows)
 
 
@@ -92,59 +110,51 @@ def solve_exam_schedule(
     num_days = len(exam_days)
     num_sessions = len(sessions)
 
+    # Extract written exam subjects (both 'lecture' and 'tcl' Theory-cum-Lab courses have written exams)
     dept_exams = {
-        dept: [subj for subj, r_type, _ in subjects if r_type == "lecture"]
+        dept: [subj for subj, mode, _, _ in subjects if mode in ("lecture", "tcl")]
         for dept, subjects in CURRICULUM.items()
     }
 
     sections = list(SECTION_STAFF.keys())
     all_faculty = sorted(list({fac for m in SECTION_STAFF.values() for fac in m.values()} - unavailable_faculty))
 
-    # 1. Decision Variables: e[(dept, subj_idx, d, s)]
+    # 1. Decision Variables: e[(dept_yr, subj_idx, d, s)]
     e = {}
-    for dept, subjs in dept_exams.items():
+    for dept_yr, subjs in dept_exams.items():
         for s_idx in range(len(subjs)):
             for d in range(num_days):
                 for s in range(num_sessions):
-                    e[(dept, s_idx, d, s)] = model.NewBoolVar(f"exam_{dept}_{s_idx}_{d}_{s}")
-
-    # Invigilation variables: inv[(hall_idx, fac, d, s)]
-    inv = {}
-    for h_idx in range(len(EXAM_HALLS)):
-        for fac in all_faculty:
-            for d in range(num_days):
-                for s in range(num_sessions):
-                    inv[(h_idx, fac, d, s)] = model.NewBoolVar(f"inv_{h_idx}_{fac}_{d}_{s}")
+                    e[(dept_yr, s_idx, d, s)] = model.NewBoolVar(f"exam_{dept_yr}_{s_idx}_{d}_{s}")
 
     # 2. Hard Constraints
-    # A: Every subject scheduled once
-    for dept, subjs in dept_exams.items():
+    # A: Every written subject scheduled exactly once
+    for dept_yr, subjs in dept_exams.items():
         for s_idx in range(len(subjs)):
-            model.Add(sum(e[(dept, s_idx, d, s)] for d in range(num_days) for s in range(num_sessions)) == 1)
+            model.Add(sum(e[(dept_yr, s_idx, d, s)] for d in range(num_days) for s in range(num_sessions)) == 1)
 
-    # B: Max 1 exam per day per department
-    for dept, subjs in dept_exams.items():
+    # B: Max 1 exam per day per department-year (gives students daily study gap)
+    for dept_yr, subjs in dept_exams.items():
         for d in range(num_days):
-            model.Add(sum(e[(dept, s_idx, d, s)] for s_idx in range(len(subjs)) for s in range(num_sessions)) <= 1)
+            model.Add(sum(e[(dept_yr, s_idx, d, s)] for s_idx in range(len(subjs)) for s in range(num_sessions)) <= 1)
 
-    # C: Ensure at least 2 DIFFERENT departments write exams simultaneously when possible
-    # so Long Benches (2-seaters) pair different subjects!
+    # C: Total students writing in any (day, session) cannot exceed campus exam seat capacity (2,400 seats)
     total_campus_seats = sum(h["benches"] * h["seats_per_bench"] for h in EXAM_HALLS)
     for d in range(num_days):
         for s in range(num_sessions):
             total_students_slot = []
             for sec in sections:
-                dept = sec.rsplit("-", 1)[0]
+                dept_yr = sec.rsplit("-", 1)[0]
                 _, start_r, end_r = SECTION_ROLL_INFO[sec]
                 strength = end_r - start_r + 1
-                for s_idx in range(len(dept_exams[dept])):
-                    total_students_slot.append(e[(dept, s_idx, d, s)] * strength)
+                for s_idx in range(len(dept_exams[dept_yr])):
+                    total_students_slot.append(e[(dept_yr, s_idx, d, s)] * strength)
             model.Add(sum(total_students_slot) <= total_campus_seats)
 
     # 3. Solve Exam Timetable
     start_time = time.time()
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 10.0
+    solver.parameters.max_time_in_seconds = 15.0
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -152,7 +162,7 @@ def solve_exam_schedule(
 
     # 4. Anti-Malpractice Cross-Department Hall & Roll-Number Packing
     schedule_rows = []
-    seating_plans = {}  # key: (Day, Session, Hall_Name) -> DataFrame of benches
+    seating_plans = {}
     fac_duty_count = {f: 0 for f in all_faculty}
 
     for d in range(num_days):
@@ -160,12 +170,11 @@ def solve_exam_schedule(
             day_name = exam_days[d]
             sess_name = sessions[s]
 
-            # Gather active sections writing an exam in this slot, grouped by subject
-            subject_queues = {}  # subject -> list of student dicts
+            subject_queues = {}
             for sec in sections:
-                dept = sec.rsplit("-", 1)[0]
-                for s_idx, subj in enumerate(dept_exams[dept]):
-                    if solver.Value(e[(dept, s_idx, d, s)]) == 1:
+                dept_yr = sec.rsplit("-", 1)[0]
+                for s_idx, subj in enumerate(dept_exams[dept_yr]):
+                    if solver.Value(e[(dept_yr, s_idx, d, s)]) == 1:
                         prefix, r_start, r_end = SECTION_ROLL_INFO[sec]
                         rolls = [f"{prefix}{r:03d}" for r in range(r_start, r_end + 1)]
                         subject_queues.setdefault(subj, []).append({
@@ -177,7 +186,6 @@ def solve_exam_schedule(
             if not subject_queues:
                 continue
 
-            # Flatten into per-subject student pools
             pools = {}
             for subj, sec_list in subject_queues.items():
                 pools[subj] = []
@@ -187,7 +195,6 @@ def solve_exam_schedule(
 
             used_fac_this_slot = set()
 
-            # Fill Exam Halls: Pair 2 DIFFERENT subjects on Long Benches, or 1 stream on Small Benches
             for hall in EXAM_HALLS:
                 active_subjs = [sub for sub, q in pools.items() if len(q) > 0]
                 if not active_subjs:
@@ -198,13 +205,11 @@ def solve_exam_schedule(
                 allocations = []
 
                 if spb == 2:
-                    # Pick up to 2 DIFFERENT subjects for Left vs Right bench seats
                     active_subjs.sort(key=lambda sub: len(pools[sub]), reverse=True)
                     subj_left = active_subjs[0]
                     take_left = pools[subj_left][:benches]
                     pools[subj_left] = pools[subj_left][benches:]
 
-                    # Group taken rolls by section for clean display
                     for sec_name in sorted(list({x[1] for x in take_left})):
                         sec_rolls = [x[0] for x in take_left if x[1] == sec_name]
                         allocations.append({"section": sec_name, "subject": subj_left, "roll_list": sec_rolls})
@@ -217,7 +222,6 @@ def solve_exam_schedule(
                             sec_rolls = [x[0] for x in take_right if x[1] == sec_name]
                             allocations.append({"section": sec_name, "subject": subj_right, "roll_list": sec_rolls})
                 else:
-                    # Small Bench (1-Seater): Interleave available subjects up to `benches` seats
                     taken = []
                     while len(taken) < benches and any(len(q) > 0 for q in pools.values()):
                         for sub in list(pools.keys()):
@@ -230,7 +234,6 @@ def solve_exam_schedule(
                 if not allocations:
                     continue
 
-                # Assign fairest available invigilator
                 avail_inv = [f for f in all_faculty if f not in used_fac_this_slot]
                 avail_inv.sort(key=lambda f: fac_duty_count[f])
                 chosen_inv = avail_inv[0] if avail_inv else "Reserve Staff"
@@ -238,11 +241,9 @@ def solve_exam_schedule(
                     used_fac_this_slot.add(chosen_inv)
                     fac_duty_count[chosen_inv] += 1
 
-                # Build bench-by-bench seating table
                 seating_df = generate_hall_seating_plan(hall, allocations)
                 seating_plans[(day_name, sess_name, hall["name"])] = seating_df
 
-                # Summary row for master exam table
                 batch_summary = "  +  ".join(
                     f"{a['section']} [{a['roll_list'][0]}–{a['roll_list'][-1]}] ({a['subject']})"
                     for a in allocations
