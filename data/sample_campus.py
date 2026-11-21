@@ -11,7 +11,6 @@ def _to_min(t_str):
     return h * 60 + m
 
 
-# 4 Staggered Year-Wise Bell Schedules (Preventing Canteen, Bus & Lab Congestion)
 YEAR_SCHEDULES = {
     "I": {
         "label": "I-Year Shift (08:00 AM – 02:20 PM | Break: 09:40 | Lunch: 11:40–12:30)",
@@ -70,7 +69,6 @@ def get_section_periods(sec):
     return YEAR_SCHEDULES[get_section_year(sec)]["periods"]
 
 
-# Generate 80 Sections (4 Depts x 4 Years x 5 Sections) & 80 Dedicated Home Classrooms
 HOME_ROOMS = {}
 ROOMS = []
 
@@ -88,7 +86,6 @@ for dept in DEPARTMENTS:
 
 SECTIONS = list(HOME_ROOMS.keys())
 
-# 24 Shared Specialized Labs (6 per department block -> 24 * 30 = 720 lab capacity vs 480 lab periods)
 LAB_NAMES_BY_DEPT = {
     "AIDS": [
         "AI & Deep Learning Lab 1", "AI & Deep Learning Lab 2",
@@ -116,151 +113,150 @@ for dept, labs in LAB_NAMES_BY_DEPT.items():
     for l_name in labs:
         ROOMS.append({"name": l_name, "type": "lab", "capacity": 65})
 
-# Curricula with Theory ('lecture'), Lab ('lab'), and Theory-cum-Lab ('tcl')
-# Format: (Subject_Name, Course_Mode, Theory_Hrs, Lab_Hrs) -> Total = 30 hrs/week per section!
-# Notice: Every curriculum has 3 Lab blocks (2 hrs each = 6 hrs) + 24 hrs Theory = 30 hrs total.
-# With max 1 lab session/day across 5 days, 3 lab blocks fit cleanly on 3 separate days!
+# Every subject has <= 5 theory hours/week, and every curriculum totals EXACTLY 30 hrs/week!
 CURRICULUM = {
     "AIDS-I": [
-        ("Engineering Mathematics I", "lecture", 5, 0),
-        ("Programming in C (TCL)",    "tcl",     3, 2),
-        ("Engineering Physics",       "lecture", 5, 0),
-        ("Digital Logic Design (TCL)","tcl",     3, 2),
-        ("Communicative English",     "lecture", 4, 0),
-        ("Basic Electrical Engg",     "lecture", 4, 0),
-        ("Python & Linux Lab",        "lab",     0, 2),
+        ("Engineering Mathematics I",  "lecture", 5, 0),
+        ("Programming in C (TCL)",     "tcl",     3, 2),
+        ("Engineering Physics",        "lecture", 5, 0),
+        ("Digital Logic Design (TCL)", "tcl",     3, 2),
+        ("Communicative English",      "lecture", 4, 0),
+        ("Basic Electrical Engg",      "lecture", 4, 0),
+        ("Python & Linux Lab",         "lab",     0, 2),
     ],
     "AIDS-II": [
-        ("Data Structures (TCL)",     "tcl",     3, 2),
-        ("Linear Algebra",            "lecture", 5, 0),
-        ("Machine Learning (TCL)",    "tcl",     3, 2),
-        ("Probability & Statistics",  "lecture", 5, 0),
-        ("Database Systems (TCL)",    "tcl",     3, 2),
-        ("Operating Systems",         "lecture", 5, 0),
+        ("Data Structures (TCL)",      "tcl",     3, 2),
+        ("Linear Algebra",             "lecture", 5, 0),
+        ("Machine Learning (TCL)",     "tcl",     3, 2),
+        ("Probability & Statistics",   "lecture", 5, 0),
+        ("Database Systems (TCL)",     "tcl",     3, 2),
+        ("Operating Systems",          "lecture", 5, 0),
     ],
     "AIDS-III": [
-        ("Deep Learning (TCL)",       "tcl",     3, 2),
-        ("Natural Language Proc",     "lecture", 5, 0),
-        ("Big Data Analytics (TCL)",  "tcl",     3, 2),
-        ("Reinforcement Learning",    "lecture", 5, 0),
-        ("Computer Vision (TCL)",     "tcl",     3, 2),
-        ("AI Ethics & Governance",    "lecture", 5, 0),
+        ("Deep Learning (TCL)",        "tcl",     3, 2),
+        ("Natural Language Proc",      "lecture", 5, 0),
+        ("Big Data Analytics (TCL)",   "tcl",     3, 2),
+        ("Reinforcement Learning",     "lecture", 5, 0),
+        ("Computer Vision (TCL)",      "tcl",     3, 2),
+        ("AI Ethics & Governance",     "lecture", 5, 0),
     ],
     "AIDS-IV": [
-        ("Generative AI & LLMs (TCL)","tcl",     3, 2),
-        ("MLOps & Cloud Scale (TCL)", "tcl",     3, 2),
-        ("Edge AI & Robotics",        "lecture", 5, 0),
-        ("AI Product Strategy",       "lecture", 5, 0),
-        ("Capstone Research Project", "lab",     0, 2),
-        ("Distributed AI Systems",    "lecture", 8, 0),
+        ("Generative AI & LLMs (TCL)", "tcl",     3, 2),
+        ("MLOps & Cloud Scale (TCL)",  "tcl",     3, 2),
+        ("Edge AI & Robotics",         "lecture", 5, 0),
+        ("AI Product Strategy",        "lecture", 5, 0),
+        ("Distributed AI Systems",     "lecture", 4, 0),
+        ("Research Seminar & Ethics",  "lecture", 4, 0),
+        ("Capstone Research Lab",      "lab",     0, 2),
     ],
     "CSE-I": [
-        ("Engineering Mathematics I", "lecture", 5, 0),
-        ("Problem Solving in C (TCL)","tcl",     3, 2),
-        ("Engineering Chemistry",     "lecture", 5, 0),
-        ("Digital Principles (TCL)",  "tcl",     3, 2),
-        ("Technical English",         "lecture", 4, 0),
-        ("Engineering Graphics",      "lecture", 4, 0),
-        ("IT Workshop & Git Lab",     "lab",     0, 2),
+        ("Engineering Mathematics I",  "lecture", 5, 0),
+        ("Problem Solving in C (TCL)", "tcl",     3, 2),
+        ("Engineering Chemistry",      "lecture", 5, 0),
+        ("Digital Principles (TCL)",   "tcl",     3, 2),
+        ("Technical English",          "lecture", 4, 0),
+        ("Engineering Graphics",       "lecture", 4, 0),
+        ("IT Workshop & Git Lab",      "lab",     0, 2),
     ],
     "CSE-II": [
-        ("Design & Analysis Algo",    "lecture", 5, 0),
-        ("Discrete Mathematics",      "lecture", 5, 0),
-        ("Operating Systems (TCL)",   "tcl",     3, 2),
-        ("Computer Architecture",     "lecture", 5, 0),
-        ("Object Oriented Prog (TCL)","tcl",     3, 2),
-        ("Database Management (TCL)", "tcl",     3, 2),
+        ("Design & Analysis Algo",     "lecture", 5, 0),
+        ("Discrete Mathematics",       "lecture", 5, 0),
+        ("Operating Systems (TCL)",    "tcl",     3, 2),
+        ("Computer Architecture",      "lecture", 5, 0),
+        ("Object Oriented Prog (TCL)", "tcl",     3, 2),
+        ("Database Management (TCL)",  "tcl",     3, 2),
     ],
     "CSE-III": [
-        ("Computer Networks (TCL)",   "tcl",     3, 2),
-        ("Theory of Computation",     "lecture", 5, 0),
-        ("Compiler Design (TCL)",     "tcl",     3, 2),
-        ("Artificial Intelligence",   "lecture", 5, 0),
-        ("Software Engineering (TCL)","tcl",     3, 2),
-        ("Distributed Computing",     "lecture", 5, 0),
+        ("Computer Networks (TCL)",    "tcl",     3, 2),
+        ("Theory of Computation",      "lecture", 5, 0),
+        ("Compiler Design (TCL)",      "tcl",     3, 2),
+        ("Artificial Intelligence",    "lecture", 5, 0),
+        ("Software Engineering (TCL)", "tcl",     3, 2),
+        ("Distributed Computing",      "lecture", 5, 0),
     ],
     "CSE-IV": [
-        ("Cloud Architecture (TCL)",  "tcl",     3, 2),
-        ("Cyber Security & Crypto",   "lecture", 5, 0),
-        ("High Performance Comp (TCL)","tcl",    3, 2),
-        ("Blockchain Systems",        "lecture", 5, 0),
-        ("Capstone Engineering Proj", "lab",     0, 2),
-        ("System Design & Scale",     "lecture", 8, 0),
+        ("Cloud Architecture (TCL)",   "tcl",     3, 2),
+        ("Cyber Security & Crypto",    "lecture", 5, 0),
+        ("High Performance Comp (TCL)","tcl",     3, 2),
+        ("Blockchain Systems",         "lecture", 5, 0),
+        ("System Design & Scale",      "lecture", 4, 0),
+        ("Enterprise Architecture",    "lecture", 4, 0),
+        ("Capstone Engineering Lab",   "lab",     0, 2),
     ],
     "IT-I": [
-        ("Engineering Mathematics I", "lecture", 5, 0),
-        ("Structured Prog in C (TCL)","tcl",     3, 2),
-        ("Applied Physics",           "lecture", 5, 0),
-        ("Web Essentials (TCL)",      "tcl",     3, 2),
-        ("Professional English",      "lecture", 4, 0),
-        ("Environmental Science",     "lecture", 4, 0),
-        ("Open Source Tools Lab",     "lab",     0, 2),
+        ("Engineering Mathematics I",  "lecture", 5, 0),
+        ("Structured Prog in C (TCL)", "tcl",     3, 2),
+        ("Applied Physics",            "lecture", 5, 0),
+        ("Web Essentials (TCL)",       "tcl",     3, 2),
+        ("Professional English",       "lecture", 4, 0),
+        ("Environmental Science",      "lecture", 4, 0),
+        ("Open Source Tools Lab",      "lab",     0, 2),
     ],
     "IT-II": [
-        ("Full Stack Web Tech (TCL)", "tcl",     3, 2),
-        ("Database Systems (TCL)",    "tcl",     3, 2),
-        ("Data Structures & Algo",    "lecture", 5, 0),
-        ("Discrete Structures",       "lecture", 5, 0),
-        ("Computer Networks (TCL)",   "tcl",     3, 2),
-        ("Human Computer Interaction","lecture", 5, 0),
+        ("Full Stack Web Tech (TCL)",  "tcl",     3, 2),
+        ("Database Systems (TCL)",     "tcl",     3, 2),
+        ("Data Structures & Algo",     "lecture", 5, 0),
+        ("Discrete Structures",        "lecture", 5, 0),
+        ("Computer Networks (TCL)",    "tcl",     3, 2),
+        ("Human Computer Interaction", "lecture", 5, 0),
     ],
     "IT-III": [
-        ("Cloud & Virtualization(TCL)","tcl",    3, 2),
-        ("Information Security",      "lecture", 5, 0),
-        ("Mobile App Dev (TCL)",      "tcl",     3, 2),
-        ("Service Oriented Arch",     "lecture", 5, 0),
-        ("DevOps Engineering (TCL)",  "tcl",     3, 2),
-        ("Data Warehousing",          "lecture", 5, 0),
+        ("Cloud & Virtualization(TCL)","tcl",     3, 2),
+        ("Information Security",       "lecture", 5, 0),
+        ("Mobile App Dev (TCL)",       "tcl",     3, 2),
+        ("Service Oriented Arch",      "lecture", 5, 0),
+        ("DevOps Engineering (TCL)",   "tcl",     3, 2),
+        ("Data Warehousing",           "lecture", 5, 0),
     ],
     "IT-IV": [
-        ("Enterprise Cloud Ops (TCL)","tcl",     3, 2),
-        ("Ethical Hacking (TCL)",     "tcl",     3, 2),
-        ("Enterprise Resource Plan",  "lecture", 5, 0),
-        ("Software Quality Assurance","lecture", 5, 0),
-        ("Industry Capstone Project", "lab",     0, 2),
-        ("IT Service Management",     "lecture", 8, 0),
+        ("Enterprise Cloud Ops (TCL)", "tcl",     3, 2),
+        ("Ethical Hacking (TCL)",      "tcl",     3, 2),
+        ("Enterprise Resource Plan",   "lecture", 5, 0),
+        ("Software Quality Assurance", "lecture", 5, 0),
+        ("IT Service Management",      "lecture", 4, 0),
+        ("Digital Governance",         "lecture", 4, 0),
+        ("Industry Capstone Lab",      "lab",     0, 2),
     ],
     "ECE-I": [
-        ("Engineering Mathematics I", "lecture", 5, 0),
-        ("Circuit Analysis (TCL)",    "tcl",     3, 2),
-        ("Semiconductor Physics",     "lecture", 5, 0),
-        ("C Programming & Logic (TCL)","tcl",    3, 2),
-        ("Technical Communication",   "lecture", 4, 0),
-        ("Engineering Mechanics",     "lecture", 4, 0),
-        ("Electronics Workshop Lab",  "lab",     0, 2),
+        ("Engineering Mathematics I",  "lecture", 5, 0),
+        ("Circuit Analysis (TCL)",     "tcl",     3, 2),
+        ("Semiconductor Physics",      "lecture", 5, 0),
+        ("C Programming & Logic (TCL)","tcl",     3, 2),
+        ("Technical Communication",    "lecture", 4, 0),
+        ("Engineering Mechanics",      "lecture", 4, 0),
+        ("Electronics Workshop Lab",   "lab",     0, 2),
     ],
     "ECE-II": [
-        ("Signals & Systems",         "lecture", 5, 0),
-        ("Digital Electronics (TCL)", "tcl",     3, 2),
-        ("Microprocessors (TCL)",     "tcl",     3, 2),
-        ("Linear Algebra & Transforms","lecture",5, 0),
-        ("Analog Circuits (TCL)",     "tcl",     3, 2),
-        ("Electromagnetic Fields",    "lecture", 5, 0),
+        ("Signals & Systems",          "lecture", 5, 0),
+        ("Digital Electronics (TCL)",  "tcl",     3, 2),
+        ("Microprocessors (TCL)",      "tcl",     3, 2),
+        ("Linear Algebra & Transforms","lecture", 5, 0),
+        ("Analog Circuits (TCL)",      "tcl",     3, 2),
+        ("Electromagnetic Fields",     "lecture", 5, 0),
     ],
     "ECE-III": [
-        ("VLSI Chip Design (TCL)",    "tcl",     3, 2),
-        ("Wireless Communication",    "lecture", 5, 0),
-        ("Digital Signal Proc (TCL)", "tcl",     3, 2),
-        ("Control Systems",           "lecture", 5, 0),
-        ("Embedded IoT Systems (TCL)","tcl",     3, 2),
-        ("Antennas & Wave Prop",      "lecture", 5, 0),
+        ("VLSI Chip Design (TCL)",     "tcl",     3, 2),
+        ("Wireless Communication",     "lecture", 5, 0),
+        ("Digital Signal Proc (TCL)",  "tcl",     3, 2),
+        ("Control Systems",            "lecture", 5, 0),
+        ("Embedded IoT Systems (TCL)", "tcl",     3, 2),
+        ("Antennas & Wave Prop",       "lecture", 5, 0),
     ],
     "ECE-IV": [
-        ("5G & RF System Design (TCL)","tcl",    3, 2),
-        ("Embedded Robotics (TCL)",   "tcl",     3, 2),
-        ("Optical Communication",     "lecture", 5, 0),
-        ("Satellite Communication",   "lecture", 5, 0),
-        ("Hardware Capstone Project", "lab",     0, 2),
-        ("Avionics & Radar Systems",  "lecture", 8, 0),
+        ("5G & RF System Design (TCL)","tcl",     3, 2),
+        ("Embedded Robotics (TCL)",    "tcl",     3, 2),
+        ("Optical Communication",      "lecture", 5, 0),
+        ("Satellite Communication",    "lecture", 5, 0),
+        ("Avionics & Radar Systems",   "lecture", 4, 0),
+        ("Biomedical Instrumentation", "lecture", 4, 0),
+        ("Hardware Capstone Lab",      "lab",     0, 2),
     ],
 }
 
-# Generate 112 Faculty Members (28 per department) & assign cleanly across all 80 sections
 FACULTY_POOL = {
-    dept: [f"Prof. {dept}-F{i:02d}" for i in range(1, 29)]
+    dept: [f"Prof. {dept}-F{i:02d}" for i in range(1, 36)]
     for dept in DEPARTMENTS
 }
-# Give realistic senior names to the first few professors in each department
 FACULTY_POOL["AIDS"][:6] = ["Dr. A. Verma", "Dr. P. Sharma", "Dr. K. Singh", "Dr. S. Iyer", "Dr. R. Mehta", "Dr. R. Menon"]
 FACULTY_POOL["CSE"][:6]  = ["Dr. V. Krishnan", "Prof. T. Das", "Prof. N. Rao", "Dr. G. Subramanian", "Prof. L. Priya", "Prof. S. Vignesh"]
 FACULTY_POOL["IT"][:6]   = ["Prof. D. Karthik", "Prof. V. Gayathri", "Prof. M. Nair", "Prof. P. Nandhini", "Prof. K. Mohan", "Prof. B. Harish"]
@@ -278,8 +274,7 @@ for sec in SECTIONS:
 
     SECTION_STAFF[sec] = {}
     for subj_idx, (subj, mode, th_hrs, lab_hrs) in enumerate(CURRICULUM[dept_yr_key]):
-        # Deterministic load-balanced faculty assignment (~15 hrs/week per professor)
-        fac = pool[(yr_idx * 7 + sec_idx * 3 + subj_idx) % len(pool)]
+        fac = pool[(yr_idx * 8 + sec_idx * 3 + subj_idx) % len(pool)]
         SECTION_STAFF[sec][subj] = fac
 
         if mode == "lecture":
@@ -287,6 +282,5 @@ for sec in SECTIONS:
         elif mode == "lab":
             COURSES.append((sec, subj, fac, "lab", lab_hrs, "Lab"))
         elif mode == "tcl":
-            # Theory-cum-Lab splits into Theory (Home Room) + Practical Lab (Shared Lab) under same faculty!
             COURSES.append((sec, f"{subj} [Theory]", fac, "lecture", th_hrs, "Theory-cum-Lab"))
             COURSES.append((sec, f"{subj} [Lab]", fac, "lab", lab_hrs, "Theory-cum-Lab"))

@@ -171,9 +171,13 @@ with st.sidebar:
     )
 
     st.divider()
-    st.markdown("## ⏰ 4-Year Staggered Shifts")
-    for yr_k in YEARS:
-        st.caption(f"• **{YEAR_SCHEDULES[yr_k]['label']}**")
+    st.markdown("## 🎓 Select Academic Year & Shift")
+    selected_sidebar_year = st.selectbox(
+        "Choose Year (I – IV)",
+        YEARS,
+        format_func=lambda y: f"Year {y} — {YEAR_SCHEDULES[y]['label'].split('(')[1].split('|')[0].strip()}",
+    )
+    st.info(f"⏰ **{YEAR_SCHEDULES[selected_sidebar_year]['label']}**")
 
     st.divider()
     st.markdown("## 🩺 Multi-Faculty Leave Simulator")
@@ -284,7 +288,6 @@ else:
     if algorithm_choice == "Google OR-Tools (CP-SAT)":
         df, solve_ms, clashes, status = get_cached_cpsat(tuple(sorted(unavailable_tuples)))
     else:
-        # Adapt 6-tuple courses to 5-tuple for greedy baseline comparison
         greedy_courses = [(c[0], c[1], c[2], c[3], c[4]) for c in COURSES]
         df, solve_ms, clashes, _ = solve_greedy(courses=greedy_courses, sections=SECTIONS, rooms=ROOMS)
         status = "GREEDY_BASELINE"
@@ -308,7 +311,6 @@ else:
         if df is None:
             st.error("No feasible schedule exists under these constraints! Switch Handling Strategy to Auto-Assign Free Substitutes.")
         else:
-            # Verify Max 1 Lab Session/Day across all 80 sections
             lab_rows = df[df["Type"] == "Lab"]
             max_labs_per_day = int(lab_rows.groupby(["Section", "Day"]).size().max() // 2) if not lab_rows.empty else 0
 
@@ -333,7 +335,7 @@ else:
             if view_mode == "Department Master View":
                 f_dept, f_yr = v2.columns(2)
                 sel_dept = f_dept.selectbox("Filter Department", DEPARTMENTS)
-                sel_yr = f_yr.selectbox("Filter Academic Year", YEARS)
+                sel_yr = f_yr.selectbox("Filter Academic Year", YEARS, index=YEARS.index(selected_sidebar_year))
                 target_secs = [s for s in SECTIONS if s.startswith(f"{sel_dept}-{sel_yr}-")]
                 sub_df = df[df["Section"].isin(target_secs)]
 
@@ -354,7 +356,7 @@ else:
                 if view_mode == "Student Section":
                     f_d, f_y, f_s = v2.columns(3)
                     sel_d = f_d.selectbox("Dept", DEPARTMENTS)
-                    sel_y = f_y.selectbox("Year", YEARS)
+                    sel_y = f_y.selectbox("Year", YEARS, index=YEARS.index(selected_sidebar_year))
                     sec_opts = [s for s in SECTIONS if s.startswith(f"{sel_d}-{sel_y}-")]
                     selected_entity = f_s.selectbox("Section", sec_opts)
 
@@ -368,7 +370,7 @@ else:
                     row_slots = [(p["idx"], p["label"]) for p in sec_periods]
 
                 elif view_mode == "Faculty Schedule":
-                    selected_entity = v2.selectbox("Select Faculty Member (112 Staff)", all_faculty)
+                    selected_entity = v2.selectbox("Select Faculty Member (140 Staff)", all_faculty)
                     filtered_df = df[(df["Faculty"] == selected_entity) | (df["Substitute"] == selected_entity)]
                     unique_times = (
                         filtered_df[["Period_Idx", "Period", "Start_Min"]]
@@ -377,7 +379,7 @@ else:
                     )
                     row_slots = list(zip(unique_times["Period_Idx"], unique_times["Period"]))
                     if not row_slots:
-                        row_slots = [(p["idx"], p["label"]) for p in YEAR_SCHEDULES["II"]["periods"]]
+                        row_slots = [(p["idx"], p["label"]) for p in YEAR_SCHEDULES[selected_sidebar_year]["periods"]]
 
                 else:
                     room_names = [r["name"] for r in ROOMS]
@@ -390,7 +392,7 @@ else:
                     )
                     row_slots = list(zip(unique_times["Period_Idx"], unique_times["Period"]))
                     if not row_slots:
-                        row_slots = [(p["idx"], p["label"]) for p in YEAR_SCHEDULES["II"]["periods"]]
+                        row_slots = [(p["idx"], p["label"]) for p in YEAR_SCHEDULES[selected_sidebar_year]["periods"]]
 
                 html = ['<table class="tt-table"><thead><tr><th style="width:12%;">Shift Timing</th>']
                 for d in DAYS:
