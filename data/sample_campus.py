@@ -16,7 +16,7 @@ HOME_ROOMS = {
     "AIDS-II-A": "Room 101 (AIDS Block)",
     "AIDS-II-B": "Room 102 (AIDS Block)",
     "CSE-II-A":  "Room 201 (CSE Block)",
-    "CSE-III-A": "Room 202 (CSE Block)",
+    "CSE-II-B":  "Room 202 (CSE Block)",
     "IT-II-A":   "Room 301 (IT Block)",
     "ECE-II-A":  "Room 401 (ECE Block)",
 }
@@ -35,60 +35,107 @@ ROOMS = [
     {"name": "Electronics & IoT Lab", "type": "lab",     "capacity": 65},
 ]
 
-# Every section has EXACTLY 30 hours/week (5 days x 6 periods = 0 free slots!)
-# Format: (section, subject, faculty, room_type_needed, hours_per_week)
-COURSES = [
-    # --- AIDS-II-A (30 hrs) ---
-    ("AIDS-II-A", "Data Structures",      "Dr. A. Verma",    "lecture", 5),
-    ("AIDS-II-A", "Linear Algebra",       "Dr. P. Sharma",   "lecture", 5),
-    ("AIDS-II-A", "Machine Learning",     "Dr. K. Singh",    "lecture", 5),
-    ("AIDS-II-A", "Probability & Stats",  "Dr. S. Iyer",     "lecture", 5),
-    ("AIDS-II-A", "Operating Systems",    "Prof. N. Rao",    "lecture", 4),
-    ("AIDS-II-A", "ML Practical Lab",     "Dr. K. Singh",    "lab",     3),
-    ("AIDS-II-A", "DSA Coding Lab",       "Dr. A. Verma",    "lab",     3),
+# 1. Standardized Department Curriculum (Every department sums to 30 hrs/week)
+CURRICULUM = {
+    "AIDS-II": [
+        ("Data Structures",     "lecture", 5),
+        ("Linear Algebra",      "lecture", 5),
+        ("Machine Learning",    "lecture", 5),
+        ("Probability & Stats", "lecture", 5),
+        ("Database Systems",    "lecture", 4),
+        ("ML Practical Lab",    "lab",     3),
+        ("DBMS Practical Lab",  "lab",     3),
+    ],
+    "CSE-II": [
+        ("Design & Analysis Algo", "lecture", 5),
+        ("Discrete Mathematics",   "lecture", 5),
+        ("Operating Systems",      "lecture", 5),
+        ("Computer Architecture",  "lecture", 5),
+        ("Object Oriented Prog",   "lecture", 4),
+        ("OS & Linux Lab",         "lab",     3),
+        ("OOP Java Lab",           "lab",     3),
+    ],
+    "IT-II": [
+        ("Web Technologies",      "lecture", 5),
+        ("Database Systems",      "lecture", 5),
+        ("Data Structures",       "lecture", 5),
+        ("Discrete Mathematics",  "lecture", 5),
+        ("Cyber Security Basics", "lecture", 4),
+        ("Full Stack Web Lab",    "lab",     3),
+        ("DBMS Practical Lab",    "lab",     3),
+    ],
+    "ECE-II": [
+        ("Signals & Systems",   "lecture", 5),
+        ("Digital Electronics", "lecture", 5),
+        ("Microprocessors",     "lecture", 5),
+        ("Linear Algebra",      "lecture", 5),
+        ("Embedded Systems",    "lecture", 4),
+        ("Digital & VLSI Lab",  "lab",     3),
+        ("Microprocessor Lab",  "lab",     3),
+    ],
+}
 
-    # --- AIDS-II-B (30 hrs) ---
-    ("AIDS-II-B", "Data Structures",      "Prof. M. Nair",   "lecture", 5),
-    ("AIDS-II-B", "Linear Algebra",       "Dr. P. Sharma",   "lecture", 5),
-    ("AIDS-II-B", "Machine Learning",     "Dr. R. Menon",    "lecture", 5),
-    ("AIDS-II-B", "Probability & Stats",  "Dr. S. Iyer",     "lecture", 5),
-    ("AIDS-II-B", "Database Systems",     "Dr. R. Mehta",    "lecture", 4),
-    ("AIDS-II-B", "ML Practical Lab",     "Dr. R. Menon",    "lab",     3),
-    ("AIDS-II-B", "DBMS Practical Lab",   "Dr. R. Mehta",    "lab",     3),
+# 2. Section-to-Faculty Mapping (Same subjects per department, distinct staff per section)
+SECTION_STAFF = {
+    "AIDS-II-A": {
+        "Data Structures":     "Dr. A. Verma",
+        "Linear Algebra":      "Dr. P. Sharma",
+        "Machine Learning":    "Dr. K. Singh",
+        "Probability & Stats": "Dr. S. Iyer",
+        "Database Systems":    "Dr. R. Mehta",
+        "ML Practical Lab":    "Dr. K. Singh",
+        "DBMS Practical Lab":  "Dr. R. Mehta",
+    },
+    "AIDS-II-B": {
+        "Data Structures":     "Prof. M. Nair",
+        "Linear Algebra":      "Dr. P. Sharma",
+        "Machine Learning":    "Dr. R. Menon",
+        "Probability & Stats": "Dr. S. Iyer",
+        "Database Systems":    "Dr. R. Mehta",
+        "ML Practical Lab":    "Dr. R. Menon",
+        "DBMS Practical Lab":  "Prof. M. Nair",
+    },
+    "CSE-II-A": {
+        "Design & Analysis Algo": "Dr. V. Krishnan",
+        "Discrete Mathematics":   "Prof. T. Das",
+        "Operating Systems":      "Prof. N. Rao",
+        "Computer Architecture":  "Dr. G. Subramanian",
+        "Object Oriented Prog":   "Prof. L. Priya",
+        "OS & Linux Lab":         "Prof. N. Rao",
+        "OOP Java Lab":           "Prof. L. Priya",
+    },
+    "CSE-II-B": {
+        "Design & Analysis Algo": "Dr. A. Verma",
+        "Discrete Mathematics":   "Prof. T. Das",
+        "Operating Systems":      "Dr. R. Menon",
+        "Computer Architecture":  "Dr. G. Subramanian",
+        "Object Oriented Prog":   "Prof. D. Karthik",
+        "OS & Linux Lab":         "Dr. R. Menon",
+        "OOP Java Lab":           "Prof. D. Karthik",
+    },
+    "IT-II-A": {
+        "Web Technologies":      "Prof. D. Karthik",
+        "Database Systems":      "Prof. M. Nair",
+        "Data Structures":       "Dr. V. Krishnan",
+        "Discrete Mathematics":  "Prof. T. Das",
+        "Cyber Security Basics": "Dr. G. Subramanian",
+        "Full Stack Web Lab":    "Prof. D. Karthik",
+        "DBMS Practical Lab":    "Prof. M. Nair",
+    },
+    "ECE-II-A": {
+        "Signals & Systems":   "Dr. H. Shankar",
+        "Digital Electronics": "Prof. K. Anitha",
+        "Microprocessors":     "Dr. B. Balaji",
+        "Linear Algebra":      "Dr. P. Sharma",
+        "Embedded Systems":    "Prof. K. Anitha",
+        "Digital & VLSI Lab":  "Prof. K. Anitha",
+        "Microprocessor Lab":  "Dr. B. Balaji",
+    },
+}
 
-    # --- CSE-II-A (30 hrs) ---
-    ("CSE-II-A",  "Design & Analysis Algo","Dr. V. Krishnan","lecture", 5),
-    ("CSE-II-A",  "Discrete Mathematics", "Prof. T. Das",    "lecture", 5),
-    ("CSE-II-A",  "Operating Systems",    "Prof. N. Rao",    "lecture", 5),
-    ("CSE-II-A",  "Computer Architecture","Dr. G. Subramanian","lecture", 5),
-    ("CSE-II-A",  "Object Oriented Prog", "Prof. L. Priya",  "lecture", 4),
-    ("CSE-II-A",  "OS & Linux Lab",       "Prof. N. Rao",    "lab",     3),
-    ("CSE-II-A",  "OOP Java Lab",         "Prof. L. Priya",  "lab",     3),
-
-    # --- CSE-III-A (30 hrs) ---
-    ("CSE-III-A", "Computer Networks",    "Dr. R. Mehta",    "lecture", 5),
-    ("CSE-III-A", "Theory of Computation","Dr. V. Krishnan", "lecture", 5),
-    ("CSE-III-A", "Compiler Design",      "Prof. T. Das",    "lecture", 5),
-    ("CSE-III-A", "Artificial Intelligence","Dr. R. Menon",  "lecture", 5),
-    ("CSE-III-A", "Software Engineering", "Prof. L. Priya",  "lecture", 4),
-    ("CSE-III-A", "Networks Socket Lab",  "Dr. R. Mehta",    "lab",     3),
-    ("CSE-III-A", "AI & Python Lab",      "Dr. R. Menon",    "lab",     3),
-
-    # --- IT-II-A (30 hrs) ---
-    ("IT-II-A",   "Web Technologies",     "Prof. D. Karthik","lecture", 5),
-    ("IT-II-A",   "Database Systems",     "Prof. M. Nair",   "lecture", 5),
-    ("IT-II-A",   "Data Structures",      "Dr. A. Verma",    "lecture", 5),
-    ("IT-II-A",   "Discrete Mathematics", "Prof. T. Das",    "lecture", 5),
-    ("IT-II-A",   "Cyber Security Basics","Dr. G. Subramanian","lecture", 4),
-    ("IT-II-A",   "Full Stack Web Lab",   "Prof. D. Karthik","lab",     3),
-    ("IT-II-A",   "DBMS Practical Lab",   "Prof. M. Nair",   "lab",     3),
-
-    # --- ECE-II-A (30 hrs) ---
-    ("ECE-II-A",  "Signals & Systems",    "Dr. H. Shankar",  "lecture", 5),
-    ("ECE-II-A",  "Digital Electronics",  "Prof. K. Anitha", "lecture", 5),
-    ("ECE-II-A",  "Microprocessors",      "Dr. B. Balaji",   "lecture", 5),
-    ("ECE-II-A",  "Linear Algebra",       "Dr. P. Sharma",   "lecture", 5),
-    ("ECE-II-A",  "Embedded Systems",     "Prof. D. Karthik","lecture", 4),
-    ("ECE-II-A",  "Digital & VLSI Lab",   "Prof. K. Anitha", "lab",     3),
-    ("ECE-II-A",  "Microprocessor Lab",   "Dr. B. Balaji",   "lab",     3),
-]
+# 3. Auto-generate COURSES list from Curriculum + Staff Mapping
+COURSES = []
+for sec, staff_map in SECTION_STAFF.items():
+    dept_key = sec.rsplit("-", 1)[0]  # e.g., "CSE-II-A" -> "CSE-II"
+    for subj, r_type, hrs in CURRICULUM[dept_key]:
+        COURSES.append((sec, subj, staff_map[subj], r_type, hrs))
